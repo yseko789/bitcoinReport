@@ -37,7 +37,7 @@ func (t TransactionModel) Insert(transaction *Transaction) error {
 
 func (t TransactionModel) Get(id int64) (*Transaction, error) {
 	query := `
-	SELECT id, created_at, amount_btc, price_per_btc, trasaction_type, note, version
+	SELECT id, created_at, amount_btc, price_per_btc, transaction_type, note, version
 	FROM transactions
 	WHERE id = $1`
 
@@ -66,6 +66,48 @@ func (t TransactionModel) Get(id int64) (*Transaction, error) {
 	}
 
 	return &transaction, nil
+}
+
+func (t TransactionModel) GetAll() ([]*Transaction, error) {
+	query := `
+	SELECT id, created_at, amount_btc, price_per_btc, transaction_type, note, version
+	FROM transactions
+	ORDER BY id`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	rows, err := t.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	transactions := []*Transaction{}
+
+	for rows.Next() {
+		var transaction Transaction
+
+		err := rows.Scan(
+			&transaction.ID,
+			&transaction.CreatedAt,
+			&transaction.AmountBTC,
+			&transaction.PricePerBTC,
+			&transaction.TransactionType,
+			&transaction.Note,
+			&transaction.Version,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		transactions = append(transactions, &transaction)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return transactions, nil
 }
 
 func (t TransactionModel) Update(transaction *Transaction) error {
@@ -105,7 +147,7 @@ func (t TransactionModel) Delete(id int64) error {
 	}
 
 	query := `
-	DELETE FROM tasks
+	DELETE FROM transactions
 	WHERE id = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
